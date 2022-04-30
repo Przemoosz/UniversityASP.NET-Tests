@@ -7,6 +7,7 @@ using FirstProject.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
+using FirstProject.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace UniversityManagementTest;
@@ -238,7 +239,118 @@ public class UniversitySaveTests
 }
 
 [TestClass]
-public class UniversityChooseTest
+public class UniversityChooseAndIndexTest
 {
+    // Testing Choose and Index Views returned from UniversityController
     
+    [TestMethod]
+    public async Task University_Choose_Data_Return_Test()
+    {
+        // Testing University/Choose page
+        // Controller should return a list of universities
+        
+        // Before this tests, all UniversitySaveTests should be passed
+        
+        // Arrange Section
+
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: "TestDatabase").Options;
+
+        ViewResult response;
+        University testUni1 = new University()
+        {
+            UniversityName = "Test1",
+            Adress = "TestAdress1",
+            CreationDate = DateTime.Now,
+            Employed = 30,
+            Faculties = new List<Faculty>(0)
+        };
+        
+        University testUni2 = new University()
+        {
+            UniversityName = "Test2",
+            Adress = "TestAdress2",
+            CreationDate = DateTime.Now,
+            Employed = 60,
+            Faculties = new List<Faculty>(0)
+        };
+        
+        // Act Section
+        await using (var context = new ApplicationDbContext(options))
+        {
+            await context.University.AddAsync(testUni1);
+            await context.University.AddAsync(testUni2);
+            await context.SaveChangesAsync();
+            UniversityController universityController = new UniversityController(context);
+            response = await universityController.Choose() as ViewResult;
+        }
+        
+        // Assert Section
+        var responseModel = (List<ChooseUniversityModelView>) response.Model;
+        Assert.AreEqual(2, responseModel.Count() );
+        Assert.AreEqual("Test1", responseModel[0].UniversityName);
+        Assert.AreEqual("Test2", responseModel[1].UniversityName);
+        Assert.AreEqual(30, responseModel[0].Employed);
+        Assert.AreEqual(60, responseModel[1].Employed);
+        Assert.AreEqual(0, responseModel[0].FacultiesCount);
+        Assert.AreEqual(0, responseModel[1].FacultiesCount);
+
+    }
+    
+    [TestMethod]
+    public async Task University_Index_Not_Found_Test()
+    {
+        // Testing Index method
+        // Controller should return not found when name does not exists in table
+        
+        // Arrange Section
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: "Testdatabase").Options;
+        string name = "UniDoesNotExists";
+        
+        // Act Section
+        await using (var context = new ApplicationDbContext(options))
+        {
+            var controller = new UniversityController(context);
+            var result = await controller.Index(name) as NotFoundResult; 
+            
+            // Assert Section
+            Assert.AreEqual(true, result is not null);
+        }
+        
+        
+
+    }
+
+    [TestMethod]
+    public async Task University_Index_Test()
+    {
+        // Controller should return "UniversityView" and model attached to university name
+        
+        // Arrange Section
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: "TestDatabase").Options;
+        ViewResult? result;
+        University testUni1 = new University()
+        {
+            UniversityName = "Test1",
+            Adress = "TestAdress1",
+            CreationDate = DateTime.Now,
+            Employed = 30,
+            Faculties = new List<Faculty>(0)
+        };
+        
+        // Act section
+        await using (var context = new ApplicationDbContext(options))
+        {
+            var controller = new UniversityController(context);
+            await context.University.AddAsync(testUni1);
+            await context.SaveChangesAsync();
+            result = await controller.Index("Test1") as ViewResult;
+        }
+
+        // Assert Section
+        Assert.AreEqual("UniversityView", result.ViewName);
+        Assert.AreEqual(testUni1,result.Model);
+    }
 }
