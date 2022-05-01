@@ -12,24 +12,22 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace UniversityManagementTest;
 
+// All test passed - 01.05.2022
+
 [TestClass]
 public class UniversitySaveTests
 {
-    // private University _universityTestObject = new University()
-    // {
-    //     UniversityName = "Test",
-    //     Adress = "TestAdress",
-    //     CreationDate = DateTime.MinValue,
-    //     Employed = 40,
-    //     Faculties = new List<Faculty>(0),
-    //     UniversityID = 1
-    // };
-    
+    // Testing Create method from UniversityController
     [TestMethod]
     public async Task University_InMemoryDb_Save_Test()
     {
+        // Testing in memory database save
+        
+        // Arrange Section
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName: "FirstProject").Options;
+        
+        // Act Section
         await using (var context = new ApplicationDbContext(options))
         {
             await context.University.AddAsync(new University()
@@ -47,7 +45,8 @@ public class UniversitySaveTests
         await using (var context = new ApplicationDbContext(options))
         {
             var unis = from uni in context.University select uni;
-            
+            // Assert Section
+
             Assert.AreEqual(1, await unis.CountAsync());
         }
 
@@ -56,6 +55,8 @@ public class UniversitySaveTests
     [TestMethod]
     public async Task University_Create_Test()
     {
+        // Testing Create POST Method, controller should handle request and save model to database
+        
         // Arrange Section
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName: "FisrtProjectDB").Options;
@@ -89,6 +90,8 @@ public class UniversitySaveTests
     [TestMethod]
     public async Task University_Create_Data_Test()
     {
+        // Testing saved data in database from Create POST Method
+        
         // Arrange Section
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName: "TestDataBase").Options;
@@ -133,6 +136,8 @@ public class UniversitySaveTests
     [TestMethod]
     public async Task University_Create_NullFaculties_Test()
     {
+        // Testing Create POST Method, controller should handle null value in Faculties
+        
         // Arrange Section
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -163,6 +168,8 @@ public class UniversitySaveTests
     [TestMethod]
     public async Task University_Create_Correct_Return_Test()
     {
+        // Testing Create POST Method, controller should redirect to "Choose" Method after successful saving data
+        
         // Arrange Section
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName: "TestDatabase2").Options;
@@ -194,6 +201,10 @@ public class UniversitySaveTests
     [TestMethod]
     public async Task University_Create_SameName_Return_Test()
     {
+        // Testing Create POST Method, controller should handle redirect to "Create" method if university name exists in database,
+        // also controller should add route values like error and wrongName
+        
+        // Arrange Section
         var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(databaseName: "DatabaseSameName")
             .Options;
         await using (var context = new ApplicationDbContext(options))
@@ -208,10 +219,12 @@ public class UniversitySaveTests
                 Faculties = null,
                 UniversityID = 1
             };
-
+            // Act Section
             await controller.Create(universityTestObject);
             universityTestObject.UniversityID = 2;
             var result = await controller.Create(universityTestObject) as RedirectToActionResult;
+            
+            // Assert Section
             Assert.AreEqual("Create", result.ActionName);
             Assert.AreEqual(2, result.RouteValues.Count);
             Assert.AreEqual(true, result.RouteValues["error"]);
@@ -219,23 +232,6 @@ public class UniversitySaveTests
         }
     }
     
-    // [TestMethod]
-    // public async Task University_Create_Invalid_ModelState_Test()
-    // {
-    //     var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-    //         .UseInMemoryDatabase(databaseName: "TestDatabase2").Options;
-    //     await using (var context = new ApplicationDbContext(options))
-    //     {
-    //         UniversityController universityController = new UniversityController(context);
-    //
-    //         University university = new University() {UniversityName = "d", Adress = "ddd"};
-    //         var result = await universityController.Create(university);
-    //
-    //         var uni = await context.University.Where(u => u.UniversityID == 1).FirstOrDefaultAsync();
-    //         
-    //         // Assert.AreEqual("Create", result.ViewName);
-    //     }
-    // }
 }
 
 [TestClass]
@@ -329,7 +325,7 @@ public class UniversityChooseAndIndexTest
         
         // Arrange Section
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase").Options;
+            .UseInMemoryDatabase(databaseName: "TestDatabase1").Options;
         ViewResult? result;
         University testUni1 = new University()
         {
@@ -353,4 +349,123 @@ public class UniversityChooseAndIndexTest
         Assert.AreEqual("UniversityView", result.ViewName);
         Assert.AreEqual(testUni1,result.Model);
     }
+}
+
+[TestClass]
+public class UniversityDeleteTest
+{
+    // Testing University/Delete
+    
+    // Database context options
+    private static DbContextOptions<ApplicationDbContext> _options;
+
+    private University _university =  new University()
+    {
+        UniversityName = "Test1",
+        Adress = "TestAdress1",
+        CreationDate = DateTime.Now,
+        Employed = 60,
+        Faculties = new List<Faculty>(0)
+    };
+    // Init database context options
+    [AssemblyInitialize]
+    public static void TestsInit(TestContext testContext)
+    {
+        _options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(databaseName: "DeleteTestDatabase")
+            .Options;
+    }
+    
+    // Init data in database
+    [TestInitialize]
+    public async Task Tests_Init()
+    {
+        await using (var context = new ApplicationDbContext(_options))
+        {
+            await context.University.AddAsync(_university);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    [TestMethod]
+    public async Task University_Get_Delete_Test()
+    {
+        // Controller should delete university from database
+        
+        // Act Section
+        await using (var context = new ApplicationDbContext(_options))
+        {
+            UniversityController universityController = new UniversityController(context);
+            var result = await universityController.Delete(1) as ViewResult;
+            University resultModel = result.Model as University;
+            
+            // Assert Section
+            // Testing only name, returned university from University/Delete do not contains empty list of faculties, instead they have null value
+            Assert.AreEqual(_university.UniversityName, resultModel.UniversityName);
+        }
+    }
+    
+    [TestMethod]
+    public async Task University_Post_Delete_Test()
+    {
+        // Controller should delete university from database
+        
+        // Act Section
+        await using (var context = new ApplicationDbContext(_options))
+        {
+            UniversityController universityController = new UniversityController(context);
+            await universityController.DeleteConfirmed(1);
+            var fetchedUni = await context.University.FirstOrDefaultAsync(i => i.UniversityID == 1);
+            // Assert Section
+            Assert.AreEqual(null, fetchedUni);
+        }
+    }
+
+    [TestMethod]
+    public async Task University_Delete_NullId_Test()
+    {
+        // Controller should return NotFound page
+        
+        // Act Section
+        await using (var context = new ApplicationDbContext(_options))
+        {
+            var controller = new UniversityController(context);
+            var restult = await controller.Delete(null) as NotFoundResult;
+            
+            // Assert Section
+            Assert.AreEqual(true, restult is not null);
+        }
+    }
+    [TestMethod]
+    public async Task University_Delete_IdNotExists_Test()
+    {
+        // Controller should return NotFound page
+        
+        // Act Section
+        await using (var context = new ApplicationDbContext(_options))
+        {
+            var controller = new UniversityController(context);
+            var restult = await controller.Delete(1970) as NotFoundResult;
+            
+            // Assert Section
+            Assert.AreEqual(true, restult is not null);
+        }
+    }
+    
+    
+    // Test Cleanup
+    [TestCleanup]
+    public async Task Test_Cleanup()
+    {
+        await using (var context = new ApplicationDbContext(_options))
+        {
+            var uniToDelete = await context.University.AsNoTracking().FirstOrDefaultAsync(u => u.UniversityID == 1);
+            if (uniToDelete is not null)
+            {
+                context.University.Remove(_university);
+                await context.SaveChangesAsync();
+            }
+        }
+    }
+    
+    
 }
