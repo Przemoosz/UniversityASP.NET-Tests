@@ -368,8 +368,8 @@ public class UniversityDeleteTest
         Faculties = new List<Faculty>(0)
     };
     // Init database context options
-    [AssemblyInitialize]
-    public static void TestsInit(TestContext testContext)
+    [ClassInitialize]
+    public static void ClassInit(TestContext testContext)
     {
         _options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(databaseName: "DeleteTestDatabase")
             .Options;
